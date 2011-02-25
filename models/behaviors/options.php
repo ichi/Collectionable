@@ -40,6 +40,7 @@ class OptionsBehavior extends ModelBehavior {
      */
 	public function beforeFind(&$Model, $query = array()) {
         $optionName = $this->settings['optionName'];
+        $query = $this->_mergeDefaultOption($Model, $query);
 		if (isset($query[$optionName])) {
 			$options = $query[$optionName];
 			unset($query[$optionName]);
@@ -94,6 +95,22 @@ class OptionsBehavior extends ModelBehavior {
 		}
 		return $base;
 	}
+
+    /**
+     * defaultのoptionをqueryにマージ
+     */
+    private function _mergeDefaultOption($Model, $query){
+        if(!empty($Model->defaultOption)){
+            $defaultOption = $Model->defaultOption;
+            $optionName = $this->settings['optionName'];
+            $options = isset($query[$optionName]) ? $query[$optionName] : array();
+            if($defaultOption === true){
+                $defaultOption = 'default';
+            }
+            $query[$optionName] = Set::merge($options, $defaultOption);
+        }
+        return $query;
+    }
 
     /**
      * マージ(?)
