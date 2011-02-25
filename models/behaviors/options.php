@@ -2,43 +2,56 @@
 
 class OptionsBehavior extends ModelBehavior {
 	
-	var $settings = array();
-	var $defaultSettings = array(
+	public $settings = array();
+	private $defaultSettings = array(
 		'setupProperty' => true,
+		'baseOption' => false,
 		'defaultOption' => false,
 		'optionName' => 'options',
 	);
 
-	var $defaultQuery = array(
+	private $defaultQuery = array(
 		'conditions' => null, 'fields' => null, 'joins' => array(), 'limit' => null,
 		'offset' => null, 'order' => null, 'page' => null, 'group' => null, 'callbacks' => true
 	);
 
-	function setup(&$Model, $settings = array()) {
+    /**
+     * setup
+     */
+	public function setup(&$Model, $settings = array()) {
 		$this->settings = array_merge($this->defaultSettings, (array)$settings);
 		$optionName = $this->settings['optionName'];
 		if ($this->settings['setupProperty']) {
+            if(method_exists($Model, 'setOptions')){
+                $Model->{$optionName} = $Model->setOptions();
+            }
 			if (empty($Model->{$optionName})) {
 				$Model->{$optionName} = array();
 			}
-			if (empty($Model->defaultOption)) {
-				$Model->defaultOption = $this->settings['defaultOption'];
+			if (empty($Model->baseOption)) {
+				$Model->baseOption = $this->settings['baseOption'];
 			}
 		}
 		return true;
 	}
 
-	function beforeFind(&$Model, $query = array()) {
-		if (isset($query['options'])) {
-			$options = $query['options'];
-			unset($query['options']);
-
+    /**
+     * beforeFind
+     */
+	public function beforeFind(&$Model, $query = array()) {
+        $optionName = $this->settings['optionName'];
+		if (isset($query[$optionName])) {
+			$options = $query[$optionName];
+			unset($query[$optionName]);
 			$query = Set::merge($this->defaultQuery, $this->options($Model, $options), Set::filter($query));
 		}
 		return $query;
 	}
 
-	function options(&$Model, $type = null){
+    /**
+     * $options[$type]のqueryを返却
+     */
+	public function options(&$Model, $type = null){
 		$args = func_get_args();
 		if (func_num_args() > 2) {
 			array_shift($args);
@@ -53,33 +66,39 @@ class OptionsBehavior extends ModelBehavior {
 		} else {
 			$optionName = $this->settings['optionName'];
 			$option = isset($Model->{$optionName}[$type]) ? $Model->{$optionName}[$type] : array();
-			$default = array();
-			if ($Model->defaultOption) {
-				$default = $this->_getDefault($Model->defaultOption, $Model->{$optionName});
+			$base = array();
+			if ($Model->baseOption) {
+				$base = $this->_getBase($Model->baseOption, $Model->{$optionName});
 			}
 			$options = array();
 			if (isset($option[$optionName]) && !empty($option[$optionName])) {
 				$options = $this->_intelligentlyMerge(array(), $option[$optionName], $Model->{$optionName});
-				unset($option['options']);
+				unset($option[$optionName]);
 			}
-			$option = Set::merge($default, $options, $option);
+			$option = Set::merge($base, $options, $option);
 		}
 		return $option;
 	}
 
-	function _getDefault($defaultOption, $options) {
-		$default = array();
-		if ($defaultOption === true && !empty($options['default'])) {
-			$default = $options['default'];
-		} elseif (is_array($defaultOption)) {
-			$default = $this->_intelligentlyMerge($default, $defaultOption, $options);
-		} elseif (!empty($options[$defaultOption])) {
-			$default = $this->_intelligentlyMerge($default, $options[$defaultOption], $options);
+    /**
+     * 基になるoptionを取得
+     */
+	private function _getBase($baseOption, $options) {
+		$base = array();
+		if ($baseOption === true && !empty($options['base'])) {
+			$base = $options['base'];
+		} elseif (is_array($baseOption)) {
+			$base = $this->_intelligentlyMerge($base, $baseOption, $options);
+		} elseif (!empty($options[$baseOption])) {
+			$base = $this->_intelligentlyMerge($base, $options[$baseOption], $options);
 		}
-		return $default;
+		return $base;
 	}
 
-	function _intelligentlyMerge($data, $merges, $options) {
+    /**
+     * マージ(?)
+     */
+	private function _intelligentlyMerge($data, $merges, $options) {
 		$merges = (array)$merges;
 		if (Set::numeric(array_keys($merges))) {
 			foreach($merges as $merge) {
