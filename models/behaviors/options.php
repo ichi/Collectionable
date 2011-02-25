@@ -58,28 +58,57 @@ class OptionsBehavior extends ModelBehavior {
 			array_shift($args);
 			$type = $args;
 		}
+        $type = Set::normalize($type);
 
 		$option = array();
-		if (is_array($type)) {
-			foreach ($type as $t) {
-				$option = Set::merge($option, $this->options($Model, $t));
-			}
-		} else {
-			$optionName = $this->settings['optionName'];
-			$option = isset($Model->{$optionName}[$type]) ? $Model->{$optionName}[$type] : array();
-			$base = array();
-			if ($Model->baseOption) {
-				$base = $this->_getBase($Model->baseOption, $Model->{$optionName});
-			}
-			$options = array();
-			if (isset($option[$optionName]) && !empty($option[$optionName])) {
-				$options = $this->_intelligentlyMerge(array(), $option[$optionName], $Model->{$optionName});
-				unset($option[$optionName]);
-			}
-			$option = Set::merge($base, $options, $option);
-		}
+        foreach($type as $t => $arg){
+            $option = Set::merge($option, $this->_createOption($Model, $t, $arg));
+        }
 		return $option;
 	}
+
+    /**
+     * 対象のoptionを作成して取得
+     */
+    private function _createOption($Model, $type, $arg=null){
+		$optionName = $this->settings['optionName'];
+		$option = $this->_getOption($Model, $type, $arg);
+		$base = array();
+		if ($Model->baseOption) {
+			$base = $this->_getBase($Model->baseOption, $Model->{$optionName});
+		}
+		$options = array();
+		if (isset($option[$optionName]) && !empty($option[$optionName])) {
+			$options = $this->_intelligentlyMerge(array(), $option[$optionName], $Model->{$optionName});
+			unset($option[$optionName]);
+		}
+		return Set::merge($base, $options, $option);
+    }
+
+    /**
+     * 対象のoptionを取得。functionだったら実行結果取得
+     */
+    private function _getOption($Model, $type, $arg=null){
+		$optionName = $this->settings['optionName'];
+        if(strpos($type, 'function:') === 0){
+            $option = $this->_execLambdaOption($Model, $type, $arg);
+        }else{
+            $option = isset($Model->{$optionName}[$type]) ? $Model->{$optionName}[$type] : array();
+        }
+        return $option;
+    }
+
+    /**
+     * functionなoptionを実行して取得
+     */
+    private function _execLambdaOption($Model, $type, $arg=null){
+		$optionName = $this->settings['optionName'];
+        list($prefix, $type) = explode(':', $type, 2);
+        if(empty($type)) return array();
+        if(empty($Model->{$optionName}[$type])) return array();
+        $func = $Model->{$optionName}[$type];
+        return call_user_func_array($func, (array) $arg);
+    }
 
     /**
      * 基になるoptionを取得
