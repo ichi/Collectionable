@@ -1,8 +1,152 @@
 # Collectionable Plugin #
 
+元はこちら [hiromi2424/Collectionable](http://github.com/hiromi2424/Collectionable) =)
 
-## How to use
-see [hiromi2424/Collectionable](http://github.com/hiromi2424/Collectionable) =)
+
+## optionsBehavior and scopeBehavior
+
+
+table
+ +----+----------------+-----+-------+------------+------------+
+ | id | name           | age | level | created    | modified   |
+ +----+----------------+-----+-------+------------+------------+
+ |  1 | Haleigh Kirlin |  21 |    20 | 2010-02-28 | 2011-02-20 |
+ +----+----------------+-----+-------+------------+------------+
+ |  2 | Raphaelle Bode |  16 |    15 | 2010-04-04 | 2010-09-07 |
+ +----+----------------+-----+-------+------------+------------+
+ |  3 | Deontae Rogahn |  27 |    15 | 2010-09-17 | 2011-04-05 |
+ +----+----------------+-----+-------+------------+------------+
+ |  4 | Lewis Little   |  16 |    20 | 2010-12-20 | 2011-01-20 |
+ +----+----------------+-----+-------+------------+------------+
+ |  5 | Polly Hegmann  |  22 |    22 | 2011-01-11 | 2011-02-18 |
+ +----+----------------+-----+-------+------------+------------+
+
+
+
+Model
+    public $actsAs = array('collectionable.Options', 'collectionable.Scope');
+    public function setOptions(){
+        return array(
+            'latest' => array(
+                'order' => array("{$this->alias}.created"=>'desc'),
+            ),
+            'highLevel' => array(
+                'order' => array("{$this->alias}.level"=>'desc'),
+            ),
+            'adult' => array(
+                'conditions' => array(
+                    "{$this->alias}.age >" => 20,
+                ),
+            ),
+            'younger' => create_function('$age', <<<EOS
+                return array(
+                    'conditions' => array(
+                        '{$this->alias}.age <' => \$age,
+                    ),
+                );
+ EOS
+            ),
+            'levelIs' => create_function('$level', <<<EOS
+                return array(
+                    'conditions' => array(
+                        '{$this->alias}.level' => \$level,
+                    ),
+                );
+ EOS
+            ),
+            'YoungerAndLevelIs' => create_function('$age,$level', <<<EOS
+                return array(
+                    'options' => array(
+                        'function:younger' => array(\$age),
+                        'function:LevelIs' => array(\$level),
+                    ),
+                );
+ EOS
+            ),
+        );
+    }
+
+
+例1:
+ $Model->find('all', array(
+    'options'=>array(
+        'latest',
+        'function:younger'=>array(17)
+    ),
+ ));
+ //or
+ $Model->scope
+    ->latest()
+    ->younger(20)
+    ->all();
+
+結果1:
+ +----+----------------+-----+-------+------------+------------+
+ |  4 | Lewis Little   |  16 |    20 | 2010-12-20 | 2011-01-20 |
+ +----+----------------+-----+-------+------------+------------+
+ |  2 | Raphaelle Bode |  16 |    15 | 2010-04-04 | 2010-09-07 |
+ +----+----------------+-----+-------+------------+------------+
+
+例2:
+ $Model->find('all', array(
+    'options'=>array(
+        'function:youngerAndLevelIs'=>array(22, 20)
+    ),
+ ));
+ //or
+ $Model->scope
+    ->youngerAndLevelIs(22, 20)
+    ->all();
+
+結果2:
+ +----+----------------+-----+-------+------------+------------+
+ |  1 | Haleigh Kirlin |  21 |    20 | 2010-02-28 | 2011-02-20 |
+ +----+----------------+-----+-------+------------+------------+
+ |  4 | Lewis Little   |  16 |    20 | 2010-12-20 | 2011-01-20 |
+ +----+----------------+-----+-------+------------+------------+
+
+例3:
+ $Model->find('first', array(
+    'options'=>array(
+        'adult',
+        'highLevel',
+    ),
+ ));
+ //or
+ $Model->scope
+    ->adult()
+    ->highLevel()
+    ->first();
+
+結果3:
+ +----+----------------+-----+-------+------------+------------+
+ |  1 | Haleigh Kirlin |  21 |    20 | 2010-02-28 | 2011-02-20 |
+ +----+----------------+-----+-------+------------+------------+
+
+
+例 パラメータ取得:
+ $params = $Model->options(array(
+    'adult',
+    'function:levelIs'=>array(22)
+    'latest',
+ ));
+ //or
+ $params = $Model->scope()
+    ->adult()
+    ->levelIs(22)
+    ->latest()
+    ->get();
+
+結果 パラメータ
+ array(
+    'conditions' => array(
+        'Model.age >' => 20,
+        'Model.level' => 22,
+    ),
+    'order' => array('Model.created'=>'desc'),
+ )
+
+
 
 
 ## License
