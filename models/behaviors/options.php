@@ -50,6 +50,15 @@ class OptionsBehavior extends ModelBehavior {
 	}
 
     /**
+     * $optionsに追加
+     */
+    public function addOption(&$Model, $type, $option){
+        $optionName = $this->settings['optionName'];
+        if(empty($Model->{$optionName})) $Model->{$optionName} = array();
+        $Model->{$optionName}[$type] = $option;
+    }
+
+    /**
      * $options[$type]のqueryを返却
      */
 	public function options(&$Model, $type = null){
