@@ -88,7 +88,8 @@ class FindScope extends Overloadable{
         }
         $params = array();
         if(in_array($method, $this->settings['paramNames'])){
-            $params = array($method=>$args);
+            $arg = !empty($args[0]) ? $args[0] : '';
+            $params = array($method=>$arg);
         }else{
             if(!empty($args)){
                 $params = $this->model->options(array("function:{$method}"=>$args));
