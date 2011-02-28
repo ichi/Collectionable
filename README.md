@@ -75,7 +75,7 @@ Model
         ),
     ));
     //or
-    $Model->scope
+    $Model->scope()
         ->latest()
         ->younger(20)
         ->all();
@@ -94,7 +94,7 @@ Model
         ),
     ));
     //or
-    $Model->scope
+    $Model->scope()
         ->youngerAndLevelIs(22, 20)
         ->all();
 
@@ -113,7 +113,7 @@ Model
         ),
     ));
     //or
-    $Model->scope
+    $Model->scope()
         ->adult()
         ->highLevel()
         ->first();
