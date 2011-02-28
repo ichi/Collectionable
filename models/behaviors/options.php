@@ -116,7 +116,15 @@ class OptionsBehavior extends ModelBehavior {
         if(empty($type)) return array();
         if(empty($Model->{$optionName}[$type])) return array();
         $func = $Model->{$optionName}[$type];
-        return call_user_func_array($func, (array) $arg);
+        $option = call_user_func_array($func, (array) $arg);
+        if(!empty($option[$optionName])){
+            $option[$optionName] = Set::normalize($option[$optionName]);
+            foreach($option[$optionName] as $t => $a){
+                $option = Set::merge($option, $this->_getOption($Model, $t, $a));
+                unset($option[$optionName][$t]);
+            }
+        }
+        return $option;
     }
 
     /**
