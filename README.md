@@ -57,8 +57,8 @@ Model
             'YoungerAndLevelIs' => create_function('$age,$level', <<<EOS
                 return array(
                     'options' => array(
-                        'function:younger' => array(\$age),
-                        'function:LevelIs' => array(\$level),
+                        'younger' => \$age,
+                        'levelIs' => \$level,
                     ),
                 );
     EOS
@@ -71,13 +71,13 @@ Model
     $Model->find('all', array(
         'options'=>array(
             'latest',
-            'function:younger'=>array(17)
+            'younger'=>17,
         ),
     ));
     //or
     $Model->scope()
         ->latest()
-        ->younger(20)
+        ->younger(17)
         ->all();
 
 結果1:
@@ -90,7 +90,7 @@ Model
 例2:
     $Model->find('all', array(
         'options'=>array(
-            'function:youngerAndLevelIs'=>array(22, 20)
+            'youngerAndLevelIs'=>array(22, 20),
         ),
     ));
     //or
@@ -127,7 +127,7 @@ Model
 例 パラメータ取得:
     $params = $Model->options(array(
         'adult',
-        'function:levelIs'=>array(22)
+        'levelIs'=>22,
         'latest',
     ));
     //or
