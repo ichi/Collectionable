@@ -15,6 +15,10 @@ class OptionsBehavior extends ModelBehavior {
 		'offset' => null, 'order' => null, 'page' => null, 'group' => null, 'callbacks' => true
 	);
 
+    private $Model;
+    private $options;
+    private $optionName;
+
     /**
      * setup
      */
@@ -38,145 +42,190 @@ class OptionsBehavior extends ModelBehavior {
     /**
      * beforeFind
      */
-	public function beforeFind(&$Model, $query = array()) {
-        $optionName = $this->settings['optionName'];
-        $query = $this->_mergeDefaultOption($Model, $query);
-		if (isset($query[$optionName])) {
-			$options = $query[$optionName];
-			unset($query[$optionName]);
-			$query = Set::merge($this->defaultQuery, $this->options($Model, $options), Set::filter($query));
+	public function beforeFind(&$Model, $queryParams = array()) {
+        $this->_setThisOptions($Model);
+        $optionName = $this->optionName;
+		if (isset($queryParams[$optionName])) {
+			$options = $queryParams[$optionName];
+			unset($queryParams[$optionName]);
+			$queryParams = Set::merge($this->defaultQuery, $this->options($Model, $options), Set::filter($queryParams));
 		}
-		return $query;
+        $queryParams = $this->_mergeDefaultParams($queryParams);
+		return $queryParams;
 	}
 
     /**
      * $optionsに追加
      */
-    public function addOption(&$Model, $type, $option){
+    public function addOption(&$Model, $key, $param){
         $optionName = $this->settings['optionName'];
         if(empty($Model->{$optionName})) $Model->{$optionName} = array();
-        $Model->{$optionName}[$type] = $option;
+        $Model->{$optionName}[$key] = $param;
     }
 
     /**
-     * $options[$type]のqueryを返却
+     * $optionsからparamsを返却
      */
-	public function options(&$Model, $type = null){
+	public function options(&$Model, $options = null){
+        $this->_setThisOptions($Model);
 		$args = func_get_args();
 		if (func_num_args() > 2) {
 			array_shift($args);
-			$type = $args;
+			$options = $args;
 		}
-        $type = Set::normalize($type);
-
-		$option = array();
-        foreach($type as $t => $arg){
-            $option = Set::merge($option, $this->_createOption($Model, $t, $arg));
-        }
-		return $option;
+		
+        $params = $this->_getParamsByOptions($options);
+        $params = $this->_mergeBaseParams($params);
+        
+        return $params;
 	}
 
-    /**
-     * 対象のoptionを作成して取得
+    /*
+     * このインスタンスにいろいろくっつけとく
+     * @param object $Model
+     * @param mixed $names
+     * @return array
      */
-    private function _createOption($Model, $type, $arg=null){
-		$optionName = $this->settings['optionName'];
-		$option = $this->_getOption($Model, $type, $arg);
-		$base = array();
-		if ($Model->baseOption) {
-			$base = $this->_getBase($Model->baseOption, $Model->{$optionName});
-		}
-		$options = array();
-		if (isset($option[$optionName]) && !empty($option[$optionName])) {
-			$options = $this->_intelligentlyMerge(array(), $option[$optionName], $Model->{$optionName});
-			unset($option[$optionName]);
-		}
-		return Set::merge($base, $options, $option);
+    private function _setThisOptions(&$Model){
+        $this->Model =& $Model;
+        $this->optionName = $this->settings['optionName'];
+        $options = array();
+        if(!empty($Model->{$this->optionName})) $options = $Model->{$this->optionName};
+        $this->options = $options;
     }
 
-    /**
-     * 対象のoptionを取得。functionだったら実行結果取得
+    /*
+     * baseOptionとマージしたparamsを返却
+     * @param array $params
+     * @return array
      */
-    private function _getOption($Model, $type, $arg=null){
-		$optionName = $this->settings['optionName'];
-        if(strpos($type, 'function:') === 0){
-            $option = $this->_execLambdaOption($Model, $type, $arg);
+    private function _mergeBaseParams($params){
+        $base = false;
+        if (!empty($this->Model->baseOption)) {
+            $base = $this->Model->baseOption;
+        }elseif(!empty($this->options['base'])){
+            $base = $this->options['base'];
+        }
+        if(empty($base)) return $params;
+        $base = $this->_convertToParams($base);
+        return Set::merge($base, $params);
+    }
+
+    /*
+     * defaultOptionとマージしたparamsを返却
+     * @param array $params
+     * @return array
+     */
+    private function _mergeDefaultParams($params){
+        $default = false;
+        if (!empty($this->Model->defaultOption)) {
+            $default = $this->Model->defaultOption;
+        }elseif(!empty($this->options['default'])){
+            $default = $this->options['default'];
+        }
+        if(empty($default)) return $params;
+        $default = $this->_convertToParams($default);
+        return Set::merge($default, $params);
+    }
+
+    
+    /*
+     * paramsなのかoptionsなのかチェックしてparamsにして返却
+     * @param mixed $options
+     * @return array
+     */
+    private function _convertToParams($options){
+        $optionName = $this->optionName;
+        if($this->_isValidOptions($options)){
+            return $this->_getParamsByOptions($options);
         }else{
-            $option = isset($Model->{$optionName}[$type]) ? $Model->{$optionName}[$type] : array();
+            return $this->_recurseParams($options);
         }
-        return $option;
     }
 
-    /**
-     * functionなoptionを実行して取得
+    /*
+     * paramsを再帰的にチェックして必要ならマージして返却
+     * @param array $param
+     * @return array
      */
-    private function _execLambdaOption($Model, $type, $arg=null){
-		$optionName = $this->settings['optionName'];
-        list($prefix, $type) = explode(':', $type, 2);
-        if(empty($type)) return array();
-        if(empty($Model->{$optionName}[$type])) return array();
-        $func = $Model->{$optionName}[$type];
-        $option = call_user_func_array($func, (array) $arg);
-        if(!empty($option[$optionName])){
-            $option[$optionName] = Set::normalize($option[$optionName]);
-            foreach($option[$optionName] as $t => $a){
-                $option = Set::merge($option, $this->_getOption($Model, $t, $a));
-                unset($option[$optionName][$t]);
+    private function _recurseParams($params){
+        $optionName = $this->optionName;
+        if(array_key_exists($optionName, $params)){
+            $params = Set::merge($params, $this->_getParamsByOptions($params[$optionName]));
+        }
+        return $params;
+    }
+
+    /*
+     * options配列（ ex: 'hoge' / array('hoge', 'fuga', 'func'=>$arg) ）からparamsを取得して返却
+     * @param mixed(string | array) $options
+     * @return array
+     */
+    private function _getParamsByOptions($options){
+        if(!$this->_isValidOptions($options)){
+            trigger_error('collectable.Options : options is not valid.', E_USER_ERROR);
+        }
+        $optionName = $this->optionName;
+        $params = array();
+        $options = Set::normalize($options);
+        foreach($options as $key => $args){
+            $param = array();
+            if(isset($args)){
+                $param = $this->_getLambdaParam($key, $args);
+            }else{
+                $param = $this->_getParam($key);
             }
+            $param = $this->_recurseParams($param);
+            $params = Set::merge($params, $param);
         }
-        return $option;
+        return $params;
     }
 
-    /**
-     * 基になるoptionを取得
+    /*
+     * 指定optionのparam返却
+     * @param string $key
+     * @return array
      */
-	private function _getBase($baseOption, $options) {
-		$base = array();
-		if ($baseOption === true && !empty($options['base'])) {
-			$base = $options['base'];
-		} elseif (is_array($baseOption)) {
-			$base = $this->_intelligentlyMerge($base, $baseOption, $options);
-		} elseif (!empty($options[$baseOption])) {
-			$base = $this->_intelligentlyMerge($base, $options[$baseOption], $options);
-		}
-		return $base;
-	}
-
-    /**
-     * defaultのoptionをqueryにマージ
-     */
-    private function _mergeDefaultOption($Model, $query){
-        if(!empty($Model->defaultOption)){
-            $defaultOption = $Model->defaultOption;
-            $optionName = $this->settings['optionName'];
-            $options = isset($query[$optionName]) ? $query[$optionName] : array();
-            if($defaultOption === true){
-                $defaultOption = 'default';
-            }
-            $query[$optionName] = Set::merge($options, $defaultOption);
-        }
-        return $query;
+    private function _getParam($key){
+        if(empty($this->options[$key])) return array();
+        return $this->options[$key];
     }
 
-    /**
-     * マージ(?)
+    /*
+     * 関数型のoptionを実行してのparam返却
+     * @param string $key
+     * @param array $args
+     * @return array
      */
-	private function _intelligentlyMerge($data, $merges, $options) {
-		$merges = (array)$merges;
-		if (Set::numeric(array_keys($merges))) {
-			foreach($merges as $merge) {
-				if (!empty($options[$merge])) {
-					$data = $this->_intelligentlyMerge($data, $options[$merge], $options);
-				}
-			}
-		} else {
-			$optionName = $this->settings['optionName'];
-			if (array_key_exists($optionName, $merges)) {
-				$data = $this->_intelligentlyMerge($data, $merges[$optionName], $options);
-				unset($merges[$optionName]);
-			}
-			$data = Set::merge($data, $merges);
-		}
-		return $data;
-	}
+    private function _getLambdaParam($key, $args=array()){
+        $method = $this->_getParam($key);
+        return (array) call_user_func_array($method, (array) $args);
+    }
+
+    /*
+     * optionsとして正しい？
+     * @param mixed $options
+     * @return boolean
+     */
+    private function _isValidOptions($options){
+        if(is_string($options)) return true;
+        if($this->_isNonHashArray($options)) return true;
+        try{
+            $options = Set::normalize($options);
+            if(array_intersect_key($options, $this->options) == $options) return true;
+        }catch(Exception $e){
+            //nothing
+        }
+        return false;
+    }
+
+    /*
+     * ハッシュでない配列か？
+     * @param array $array
+     * @return boolean
+     */
+    private function _isNonHashArray($array){
+        return Set::numeric(array_keys($array));
+    }
+    
 }

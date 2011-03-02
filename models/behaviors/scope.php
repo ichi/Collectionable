@@ -21,6 +21,9 @@ class ScopeBehavior extends ModelBehavior
     function setup(&$Model, $settings=array())
     {
         $this->settings = array_merge($this->settings, (array) $settings);
+        if (!$Model->Behaviors->attached('collectionable.Options')){
+            $behaviors = $Model->Behaviors->attach('collectionable.Options');
+        }
     }
     
     /**
@@ -92,7 +95,7 @@ class FindScope extends Overloadable{
             $params = array($method=>$arg);
         }else{
             if(!empty($args)){
-                $params = $this->model->options(array("function:{$method}"=>$args));
+                $params = $this->model->options(array("{$method}"=>$args));
             }else{
                 $params = $this->model->options($method);
             }
