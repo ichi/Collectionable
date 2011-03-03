@@ -152,6 +152,7 @@ class OptionsBehavior extends ModelBehavior {
         $optionName = $this->optionName;
         if(array_key_exists($optionName, $params)){
             $params = Set::merge($params, $this->_getParamsByOptions($params[$optionName]));
+            unset($params[$optionName]);
         }
         return $params;
     }
