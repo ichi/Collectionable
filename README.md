@@ -2,6 +2,8 @@
 
 元はこちら [hiromi2424/Collectionable](http://github.com/hiromi2424/Collectionable) =)
 
+だいぶ私用。
+testのやり方よくわからに。 -> バグ多そう。
 
 ## optionsBehavior and scopeBehavior
 
