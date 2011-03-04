@@ -80,7 +80,7 @@ class OptionsBehavior extends ModelBehavior {
         return $params;
 	}
 
-    /*
+    /**
      * このインスタンスにいろいろくっつけとく
      * @param object $Model
      * @param mixed $names
@@ -94,7 +94,7 @@ class OptionsBehavior extends ModelBehavior {
         $this->options = $options;
     }
 
-    /*
+    /**
      * baseOptionとマージしたparamsを返却
      * @param array $params
      * @return array
@@ -111,7 +111,7 @@ class OptionsBehavior extends ModelBehavior {
         return Set::merge($base, $params);
     }
 
-    /*
+    /**
      * defaultOptionとマージしたparamsを返却
      * @param array $params
      * @return array
@@ -129,7 +129,7 @@ class OptionsBehavior extends ModelBehavior {
     }
 
     
-    /*
+    /**
      * paramsなのかoptionsなのかチェックしてparamsにして返却
      * @param mixed $options
      * @return array
@@ -143,7 +143,7 @@ class OptionsBehavior extends ModelBehavior {
         }
     }
 
-    /*
+    /**
      * paramsを再帰的にチェックして必要ならマージして返却
      * @param array $param
      * @return array
@@ -157,7 +157,7 @@ class OptionsBehavior extends ModelBehavior {
         return $params;
     }
 
-    /*
+    /**
      * options配列（ ex: 'hoge' / array('hoge', 'fuga', 'func'=>$arg) ）からparamsを取得して返却
      * @param mixed(string | array) $options
      * @return array
@@ -182,7 +182,7 @@ class OptionsBehavior extends ModelBehavior {
         return $params;
     }
 
-    /*
+    /**
      * 指定optionのparam返却
      * @param string $key
      * @return array
@@ -192,7 +192,7 @@ class OptionsBehavior extends ModelBehavior {
         return $this->options[$key];
     }
 
-    /*
+    /**
      * 関数型のoptionを実行してのparam返却
      * @param string $key
      * @param array $args
@@ -203,7 +203,7 @@ class OptionsBehavior extends ModelBehavior {
         return (array) call_user_func_array($method, (array) $args);
     }
 
-    /*
+    /**
      * optionsとして正しい？
      * @param mixed $options
      * @return boolean
@@ -220,7 +220,7 @@ class OptionsBehavior extends ModelBehavior {
         return false;
     }
 
-    /*
+    /**
      * ハッシュでない配列か？
      * @param array $array
      * @return boolean
